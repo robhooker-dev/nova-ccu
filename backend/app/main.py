@@ -2,6 +2,8 @@
 Routes only. No business logic lives here -- validate the request, call a
 module, record an audit entry, return. All SQL lives in storage.py.
 """
+import base64
+import secrets
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -70,6 +72,34 @@ def _seed_known_officers():
             user = storage.create_user(principal, name, role, "dev-fallback")
         if not user["password_hash"]:
             storage.set_user_password(principal, identity.hash_password(password))
+
+
+@app.middleware("http")
+async def require_site_password(request: Request, call_next):
+    """
+    Optional shared front-door gate for a semi-public deployment (e.g. a
+    Render URL shared with a few colleagues) that has no real per-user
+    auth yet -- see identity.py's dev-fallback docstring. Off by default
+    (blank NOVA_CCU_SITE_PASSWORD); dev-fallback identity still applies
+    underneath it -- this is a coarse "right visitor" check, not a
+    substitute for real sign-in. /api/health stays open so the hosting
+    platform's own health check (which sends no credentials) still passes.
+    """
+    if not config.site_gate_configured() or request.url.path == "/api/health":
+        return await call_next(request)
+
+    from fastapi.responses import Response
+
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Basic "):
+        try:
+            username, _, password = base64.b64decode(auth[6:]).decode("utf-8").partition(":")
+        except Exception:
+            username, password = "", ""
+        if secrets.compare_digest(username, config.SITE_USERNAME) and secrets.compare_digest(password, config.SITE_PASSWORD):
+            return await call_next(request)
+
+    return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Nova-CCU"'})
 
 
 @app.middleware("http")

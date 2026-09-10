@@ -1,29 +1,28 @@
 """
-Azure-or-mock chat. Called over raw httpx -- no SDK version drift.
+Anthropic-or-mock chat. Called over raw httpx -- no SDK version drift.
 
-Degrade-loud: with no LLM key, chat() returns a deterministic mock that
+Degrade-loud: with no API key, chat() returns a deterministic mock that
 echoes the assembled context, prefixed "[OFFLINE PLACEHOLDER -- ...]". The
 whole workflow must run end to end with no network at all. Never hide this
-from the officer -- mode() is surfaced in the UI and on /api/health.
+from the officer -- mode() is surfaced in the UI and on /api/health as
+"live" / "mock", never a vendor name (officer-facing text stays vendor-free
+per the house style).
 
-Gotchas baked in here (all found the hard way, per the build notes):
-  - gpt-5.x deployments reject `max_tokens` (use `max_completion_tokens`)
-    and reject any non-default `temperature`. Both fail on the first call.
+Gotchas:
   - Set proxy=None on outbound httpx calls -- inheriting the corporate
-    proxy from the shell produces intermittent 407s on some sections.
-  - An empty completion is usually refusal or token overflow, not the
-    content filter -- surface finish_reason, never return blank.
-  - Investigation material can trip the content filter (it describes
-    corruption, abuse, financial wrongdoing). A content-filter-relaxed
-    deployment should be available for this class of tool.
+    proxy from the shell has produced intermittent 407s on some networks.
+  - An empty completion is usually truncation (stop_reason "max_tokens"),
+    not a refusal -- surface stop_reason, never return blank.
 """
 import httpx
 
 from . import config
 
+ANTHROPIC_API_VERSION = "2023-06-01"
+
 
 def mode() -> str:
-    return "azure" if config.azure_configured() else "mock"
+    return "live" if config.anthropic_configured() else "mock"
 
 
 class LLMResult:
@@ -38,7 +37,7 @@ def _mock_chat(prompt: str) -> LLMResult:
     if len(snippet) > 400:
         snippet = snippet[:400] + "..."
     text = (
-        "[OFFLINE PLACEHOLDER -- no Azure OpenAI deployment configured. "
+        "[OFFLINE PLACEHOLDER -- no AI provider configured. "
         "This is not a drafted report; it echoes what would have been sent "
         "to the model so the workflow can be exercised end to end with no "
         "network access.]\n\n"
@@ -48,47 +47,44 @@ def _mock_chat(prompt: str) -> LLMResult:
 
 
 async def chat(prompt: str, max_output_tokens: int = 1000) -> LLMResult:
-    if not config.azure_configured():
+    if not config.anthropic_configured():
         return _mock_chat(prompt)
 
-    url = (
-        f"{config.AZURE_OPENAI_ENDPOINT}/openai/deployments/"
-        f"{config.AZURE_OPENAI_DEPLOYMENT}/chat/completions"
-        f"?api-version={config.AZURE_OPENAI_API_VERSION}"
-    )
-    headers = {"api-key": config.AZURE_OPENAI_KEY, "Content-Type": "application/json"}
-    # gpt-5.x rejects `max_tokens` and non-default `temperature` -- use
-    # `max_completion_tokens` and omit temperature entirely.
+    headers = {
+        "x-api-key": config.ANTHROPIC_API_KEY,
+        "anthropic-version": ANTHROPIC_API_VERSION,
+        "Content-Type": "application/json",
+    }
     body = {
+        "model": config.ANTHROPIC_MODEL,
+        "max_tokens": max_output_tokens,
         "messages": [{"role": "user", "content": prompt}],
-        "max_completion_tokens": max_output_tokens,
     }
 
     async with httpx.AsyncClient(proxy=None, timeout=60.0) as client:
         try:
-            resp = await client.post(url, headers=headers, json=body)
+            resp = await client.post("https://api.anthropic.com/v1/messages", headers=headers, json=body)
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
             return LLMResult(
-                text=f"[AI DRAFTING FAILED -- {e.response.status_code} from Azure OpenAI. Draft manually.]",
+                text=f"[AI DRAFTING FAILED -- {e.response.status_code} from Anthropic. Draft manually.]",
                 finish_reason="error",
-                mode_used="azure",
+                mode_used="live",
             )
         except httpx.RequestError as e:
             return LLMResult(
                 text=f"[AI DRAFTING FAILED -- network error ({e.__class__.__name__}). Draft manually.]",
                 finish_reason="error",
-                mode_used="azure",
+                mode_used="live",
             )
 
     data = resp.json()
-    choice = (data.get("choices") or [{}])[0]
-    finish_reason = choice.get("finish_reason", "unknown")
-    text = (choice.get("message") or {}).get("content", "")
+    stop_reason = data.get("stop_reason", "unknown")
+    text = "".join(block.get("text", "") for block in (data.get("content") or []) if block.get("type") == "text")
 
     if not text:
-        # An empty completion is usually refusal or token overflow, not the
-        # content filter -- surface finish_reason rather than returning blank.
-        text = f"[AI DRAFTING RETURNED NO TEXT -- finish_reason: {finish_reason}. Draft manually.]"
+        # Usually truncation (stop_reason "max_tokens") -- surface it
+        # rather than returning blank.
+        text = f"[AI DRAFTING RETURNED NO TEXT -- stop_reason: {stop_reason}. Draft manually.]"
 
-    return LLMResult(text=text, finish_reason=finish_reason, mode_used="azure")
+    return LLMResult(text=text, finish_reason=stop_reason, mode_used="live")

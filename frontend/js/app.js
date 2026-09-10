@@ -645,7 +645,7 @@ function renderNewCaseView() {
 
     const noteBox = document.getElementById("intel-draft-note");
     const warning = draft.warning ? `<div class="error-banner">${escapeHtml(draft.warning)}</div>` : "";
-    const mode = draft.llm_mode === "azure"
+    const mode = draft.llm_mode === "live"
       ? `<p style="font-size:11px;color:#B9C0C9;margin:6px 0 0;">AI-drafted from the uploaded file — every field above is editable; check each one before creating the record.</p>`
       : `<p style="font-size:11px;color:var(--amber-text);margin:6px 0 0;">Drafted in mock mode (no AI configured) — the summary field holds the raw extracted text; every other field needs filling in by hand.</p>`;
     noteBox.innerHTML = warning + mode;
@@ -888,7 +888,7 @@ function renderRiskTab(el, caseId, c) {
         }),
       });
       document.getElementById("risk-rationale").value = result.rationale;
-      if (result.llm_mode !== "azure") {
+      if (result.llm_mode !== "live") {
         noteBox.innerHTML = `<p style="font-size:11px;color:var(--amber-text);margin:4px 0 0;">Drafted in mock mode (no AI configured) \u2014 this is a placeholder, not a real drafted rationale.</p>`;
       } else {
         noteBox.innerHTML = `<p style="font-size:11px;color:#B9C0C9;margin:4px 0 0;">AI-drafted \u2014 review and edit before saving.</p>`;
@@ -973,7 +973,7 @@ function renderAdcTab(el, caseId, data, users) {
         body: JSON.stringify({ decision: selectedDecision }),
       });
       document.getElementById("adc-rationale").value = result.rationale;
-      if (result.llm_mode !== "azure") {
+      if (result.llm_mode !== "live") {
         noteBox.innerHTML = `<p style="font-size:11px;color:var(--amber-text);margin:4px 0 0;">Drafted in mock mode (no AI configured) \u2014 this is a placeholder, not a real drafted rationale.</p>`;
       } else {
         noteBox.innerHTML = `<p style="font-size:11px;color:#B9C0C9;margin:4px 0 0;">AI-drafted \u2014 review and edit before saving.</p>`;

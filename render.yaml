@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: nova-ccu
+    runtime: python
+    plan: starter          # needed for a persistent disk -- the free plan's
+                            # storage is ephemeral and the SQLite db would
+                            # reset on every restart/redeploy
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    disk:
+      name: nova-ccu-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      # Deliberately NOT "production" -- that disables dev-fallback sign-in
+      # entirely (see identity.py), and this deployment has no real
+      # Entra/MSAL configured yet. Keep as development until it does.
+      - key: ENVIRONMENT
+        value: development
+      - key: NOVA_CCU_DATA_DIR
+        value: /var/data
+      - key: ANTHROPIC_API_KEY
+        sync: false         # set in the Render dashboard, not committed
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+      - key: NOVA_CCU_SUPERVISORS
+        sync: false
+      - key: NOVA_CCU_SITE_USERNAME
+        sync: false
+      - key: NOVA_CCU_SITE_PASSWORD
+        sync: false         # shared front-door gate -- see README

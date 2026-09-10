@@ -70,7 +70,7 @@ async def run_ai_check(report_body: str) -> str | None:
     against placeholder text would itself be placeholder noise, which is
     worse than no check at all).
     """
-    if llm.mode() != "azure":
+    if llm.mode() != "live":
         return None
 
     prompt = (

@@ -133,7 +133,7 @@ _BLANK_DRAFT = {
 async def draft_intel_from_text(text: str) -> dict:
     truncated = text.strip()[:MAX_CHARS]
 
-    if llm.mode() != "azure":
+    if llm.mode() != "live":
         # No model to extract with. A generic prompt echo (llm.py's usual
         # mock) would be useless here -- there's nothing to parse into
         # fields -- so instead surface the actual extracted text and leave
@@ -143,7 +143,7 @@ async def draft_intel_from_text(text: str) -> dict:
         return {
             **_BLANK_DRAFT,
             "summary": (
-                "[OFFLINE PLACEHOLDER -- no Azure OpenAI deployment configured. "
+                "[OFFLINE PLACEHOLDER -- no AI provider configured. "
                 "AI extraction did not run; this is the raw text read from the "
                 "uploaded file for you to summarise yourself.]\n\n" + preview
             ),
@@ -164,7 +164,7 @@ async def draft_intel_from_text(text: str) -> dict:
     except (json.JSONDecodeError, TypeError):
         return {
             **_BLANK_DRAFT,
-            "llm_mode": "azure",
+            "llm_mode": "live",
             "warning": "The AI's response could not be read as a structured draft. Enter the fields manually.",
         }
 
@@ -183,6 +183,6 @@ async def draft_intel_from_text(text: str) -> dict:
         "crime_ref": str(data.get("crime_ref") or "")[:128],
         "summary": str(data.get("summary") or ""),
         "sanitised": str(data.get("sanitised") or ""),
-        "llm_mode": "azure",
+        "llm_mode": "live",
         "warning": None,
     }

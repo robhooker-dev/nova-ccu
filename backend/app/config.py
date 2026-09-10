@@ -47,20 +47,20 @@ ENVIRONMENT = get("ENVIRONMENT", "development")
 PORT = int(get("PORT", "8000"))
 APP_NAME = "NOVA_CCU"
 
-# ---- Azure OpenAI (chat) ----
-AZURE_OPENAI_ENDPOINT = get("AZURE_OPENAI_ENDPOINT")
-AZURE_OPENAI_KEY = get("AZURE_OPENAI_KEY")
-AZURE_OPENAI_DEPLOYMENT = get("AZURE_OPENAI_DEPLOYMENT")
-AZURE_OPENAI_API_VERSION = get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
-AZURE_OPENAI_EMBEDDING_DEPLOYMENT = get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+# ---- Anthropic (chat) ----
+ANTHROPIC_API_KEY = get("ANTHROPIC_API_KEY")
+ANTHROPIC_MODEL = get("ANTHROPIC_MODEL", "claude-sonnet-5")
 
 
-def azure_configured() -> bool:
-    return bool(AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY and AZURE_OPENAI_DEPLOYMENT)
+def anthropic_configured() -> bool:
+    return bool(ANTHROPIC_API_KEY)
 
 
 def embedding_configured() -> bool:
-    return bool(azure_configured() and AZURE_OPENAI_EMBEDDING_DEPLOYMENT)
+    # No RAG/embeddings pipeline exists in Nova-CCU yet (see STATUS.md) --
+    # stays false until one is actually built, rather than gating on
+    # unrelated chat credentials.
+    return False
 
 
 # ---- Document Intelligence (OCR) ----
@@ -85,6 +85,19 @@ TRUST_EASYAUTH = get_bool(f"{APP_NAME}_TRUST_EASYAUTH", default=False)
 
 def msal_configured() -> bool:
     return bool(AZURE_AD_CLIENT_ID and AZURE_AD_CLIENT_SECRET and AZURE_AD_TENANT_ID and SESSION_SECRET_KEY)
+
+
+# ---- Shared front-door gate (optional) ----
+# A coarse HTTP Basic Auth challenge in front of the whole app -- for a
+# semi-public deployment (e.g. a shared Render URL) that has no real
+# per-user auth yet. Off by default (blank password); dev-fallback identity
+# still applies underneath it. Not a substitute for real sign-in.
+SITE_USERNAME = get(f"{APP_NAME}_SITE_USERNAME", "nova-ccu")
+SITE_PASSWORD = get(f"{APP_NAME}_SITE_PASSWORD")
+
+
+def site_gate_configured() -> bool:
+    return bool(SITE_PASSWORD)
 
 
 # ---- Roles bootstrap ----
@@ -121,7 +134,7 @@ def all_modes() -> dict:
     """Everything /api/health reports. Add new predicates here, not ad hoc."""
     return {
         "environment": ENVIRONMENT,
-        "llm": "azure" if azure_configured() else "mock",
+        "llm": "live" if anthropic_configured() else "mock",
         "embeddings": "azure" if embedding_configured() else "keyword-fallback",
         "ocr": "azure" if ocr_configured() else "off",
         "auth": (

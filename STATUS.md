@@ -101,10 +101,14 @@ steps.
   worth deciding deliberately rather than porting reflexively.
 - **No messaging/threads model.** Supervisor "return" is a single message
   field, not Andrew's full per-case-plus-direct threads model.
-- **Entra auth and Azure OpenAI are coded but unverified** — both need
-  real credentials only your IT/Andrew's team can provision. Until then
-  the app correctly runs in dev-fallback/mock mode and says so on
-  `/api/health` and in the frontend's mode badge.
+- **Entra auth is coded but unverified** — needs real credentials only
+  your IT team can provision. Until then the app correctly runs in
+  dev-fallback mode and says so on `/api/health` and in the frontend's
+  mode badge.
+- **AI drafting now runs live against Anthropic** (`llm.py`, swapped from
+  the originally-planned Azure OpenAI once real credentials were to hand)
+  when `ANTHROPIC_API_KEY` is set — see `README.md`. Falls back to mock
+  mode with zero configuration, as before.
 - **No hosting/deployment setup.**
 - Two earlier bugs (a session-handling crash with MSAL unconfigured, and
   a role-seeding precedence bug) were found and fixed in the first pass

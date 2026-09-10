@@ -219,3 +219,31 @@ async def generate_risk_rationale(case_id: int, impact: int, likelihood: int) ->
     )
     result = await llm.chat(prompt, max_output_tokens=350)
     return result.text
+
+
+ADC_RATIONALE_PROMPT = (
+    "You are drafting the rationale for an Assessment and Development Cell (ADC) decision on a UK "
+    "police Counter Corruption Unit case. Write ONE paragraph explaining why the decision below is "
+    "the appropriate outcome, based entirely on the case facts provided.\n\n"
+    "The rationale must, in this rough order:\n"
+    "1. Briefly state the circumstances giving rise to the referral, drawn from the intelligence.\n"
+    "2. Name the specific standards or concern categories raised -- only ones actually supported by "
+    "the facts given.\n"
+    "3. Explain, using appropriately hedged language given the intelligence grading, why the stated "
+    "decision -- and not a more or less serious outcome -- is proportionate.\n"
+    "4. Note what happens as a result of the decision (e.g. allocation of an investigating officer, "
+    "referral to another department, no further action required).\n\n"
+    "Do not invent facts, names, ranks or details not present below. Write flowing prose, not a "
+    "bulleted list, in a single paragraph unless the facts clearly call for two.\n\n"
+    "CASE FACTS:\n{facts}\n\n"
+    "ADC DECISION TO JUSTIFY: {decision}"
+)
+
+
+async def generate_adc_rationale(case_id: int, decision: str) -> str:
+    facts = _case_facts(case_id)
+    plain_facts = _facts_to_plain_text(facts)
+
+    prompt = ADC_RATIONALE_PROMPT.format(facts=plain_facts, decision=decision)
+    result = await llm.chat(prompt, max_output_tokens=350)
+    return result.text

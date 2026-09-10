@@ -16,11 +16,19 @@ Requires the server already running (see run.py / README) with dev-fallback
 auth (i.e. not ENVIRONMENT=production). Safe to re-run: every call creates
 new rows via the normal API, it does not touch the database directly.
 """
+import os
 import sys
 
 import httpx
 
 BASE_URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+
+# If the target is behind the optional site-password gate (see README
+# "Deploying (Render)"), set these two env vars before running -- same
+# names the server itself reads, so no credential is hardcoded here.
+SITE_AUTH = None
+if os.environ.get("NOVA_CCU_SITE_USERNAME") and os.environ.get("NOVA_CCU_SITE_PASSWORD"):
+    SITE_AUTH = (os.environ["NOVA_CCU_SITE_USERNAME"], os.environ["NOVA_CCU_SITE_PASSWORD"])
 
 # Known officers auto-seeded by main.py on startup.
 DC_MARSH = ("dc.marsh@example.police.uk", "DC J. Marsh")
@@ -386,7 +394,7 @@ def seed_business_interests(client: httpx.Client) -> None:
 
 
 def main() -> None:
-    with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+    with httpx.Client(base_url=BASE_URL, timeout=30.0, auth=SITE_AUTH) as client:
         health = client.get("/api/health").json()
         print(f"Connected to {BASE_URL} -- modes: {health['modes']}")
         if health["modes"]["environment"] == "production":

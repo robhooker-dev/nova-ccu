@@ -476,6 +476,13 @@ def record_adc_decision(case_id: int, body: AdcDecisionBody, request: Request):
         (case_id, datetime.now(timezone.utc).isoformat(), body.decision, body.rationale,
          owner["id"] if owner else None, decider["id"]),
     )
+    if body.decision == "CCU Investigation":
+        # Recording this decision is what "opens" the investigation --
+        # without this, the Investigation tab kept showing "not progressed
+        # to a formal investigation" forever, since nothing ever wrote to
+        # this table. Insert-if-missing so re-recording the same decision
+        # doesn't clobber a plan/outcome already entered.
+        conn.execute("INSERT OR IGNORE INTO investigations (case_id) VALUES (?)", (case_id,))
     conn.commit()
     audit.record("case.adc_decision", item_id=str(case_id), case_ref=case["ref"], detail={"decision": body.decision})
     return {"ok": True}
@@ -498,6 +505,31 @@ async def generate_adc_rationale_route(case_id: int, body: GenerateAdcRationaleB
     rationale = await report_module.generate_adc_rationale(case_id, body.decision)
     audit.record("case.adc_rationale_drafted", item_id=str(case_id), case_ref=case["ref"])
     return {"rationale": rationale, "llm_mode": llm.mode()}
+
+
+class InvestigationBody(BaseModel):
+    plan: str = ""
+    review_date: str = ""
+    outcome: str = ""
+
+
+@app.post("/api/cases/{case_id}/investigation")
+def update_investigation(case_id: int, body: InvestigationBody, request: Request):
+    identity.require_identity(request)
+    conn = storage.get_conn()
+    case = conn.execute("SELECT ref FROM cases WHERE id = ?", (case_id,)).fetchone()
+    if case is None:
+        raise HTTPException(404, "Case not found.")
+
+    conn.execute(
+        """INSERT INTO investigations (case_id, plan, review_date, outcome) VALUES (?, ?, ?, ?)
+           ON CONFLICT(case_id) DO UPDATE SET
+             plan=excluded.plan, review_date=excluded.review_date, outcome=excluded.outcome""",
+        (case_id, body.plan, body.review_date, body.outcome),
+    )
+    conn.commit()
+    audit.record("case.investigation_updated", item_id=str(case_id), case_ref=case["ref"])
+    return {"ok": True}
 
 
 class AddActionBody(BaseModel):

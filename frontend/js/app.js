@@ -1017,8 +1017,14 @@ function renderInvestigationTab(el, caseId, data, users) {
     </div>
 
     ${inv ? `
-      <div class="card"><div class="card-title">Investigation plan</div><p style="font-size:13px;">${escapeHtml(inv.plan)}</p></div>
-      <div class="card">${fieldRow("Next review date", inv.review_date)}${fieldRow("Current outcome", inv.outcome)}</div>
+      <div class="card">
+        <div class="card-title">Investigation plan</div>
+        <textarea id="inv-plan" rows="4" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;" placeholder="What is being done to investigate this case...">${escapeHtml(inv.plan)}</textarea>
+        <div class="field" style="margin-top:10px;"><label>Next review date</label><input id="inv-review-date" value="${escapeHtml(inv.review_date)}" placeholder="e.g. 15 Sep 2026" /></div>
+        <div class="field"><label>Current outcome</label><textarea id="inv-outcome" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;" placeholder="Outcome so far, if any...">${escapeHtml(inv.outcome)}</textarea></div>
+        <div class="modal-actions"><button class="btn btn-primary" id="inv-save">Save investigation plan</button></div>
+        <div id="inv-error"></div>
+      </div>
     ` : `<div class="card"><div class="empty-state" style="padding:20px;">This case has not progressed to a formal investigation.</div></div>`}
 
     <div class="card">
@@ -1104,6 +1110,24 @@ function renderInvestigationTab(el, caseId, data, users) {
   };
 
   document.getElementById("generate-report-btn").onclick = () => openReportModal(caseId, data.reports);
+
+  if (inv) {
+    document.getElementById("inv-save").onclick = async () => {
+      try {
+        await api(`/cases/${caseId}/investigation`, {
+          method: "POST",
+          body: JSON.stringify({
+            plan: document.getElementById("inv-plan").value,
+            review_date: document.getElementById("inv-review-date").value.trim(),
+            outcome: document.getElementById("inv-outcome").value,
+          }),
+        });
+        renderCaseDetailView(caseId);
+      } catch (e) {
+        document.getElementById("inv-error").innerHTML = `<div class="error-banner">${escapeHtml(e.message)}</div>`;
+      }
+    };
+  }
 }
 
 /* ---------------------------------------------------------------------

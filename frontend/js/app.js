@@ -34,6 +34,12 @@ function renderIdentityBox() {
   label.textContent = state.user ? `${state.user.display_name}` : "Not signed in";
 }
 
+function logOut() {
+  localStorage.removeItem("nova_ccu_user");
+  state.user = null;
+  renderIdentityBox();
+}
+
 function promptForUser() {
   return new Promise((resolve) => {
     modalRoot.innerHTML = `
@@ -256,8 +262,10 @@ async function init() {
   await refreshModeBadge();
 
   document.getElementById("switch-user-btn").onclick = async () => {
+    logOut();
     const u = await promptForUser();
-    if (u) { saveUser(u); await refreshUserRole(); render(); }
+    if (u) { saveUser(u); await refreshUserRole(); }
+    render();  // always refresh -- cancelling the sign-in prompt should still show the signed-out state, not stale content
   };
   document.getElementById("brand-home").onclick = () => setView("dashboard");
 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nova-CCU</title>
+<link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand" id="brand-home">
+    <img class="brand-logo" src="/img/northumbria-crest.png" alt="Northumbria Police" />
+    <div>
+      <div class="brand-title">Nova-CCU</div>
+      <div class="brand-sub">Counter Corruption Unit Intelligence &amp; Case Management</div>
+    </div>
+  </div>
+  <div class="mode-badge" id="mode-badge">checking status&hellip;</div>
+  <div class="identity" id="identity-box">
+    <span id="identity-label">Not signed in</span>
+    <button id="switch-user-btn" class="btn btn-ghost-dark">Switch user</button>
+  </div>
+</header>
+
+<nav id="nav">
+  <button class="nav-item active" data-view="dashboard">Dashboard</button>
+  <button class="nav-item" data-view="cases">CCU Cases</button>
+  <button class="nav-item" data-view="hub">Hub Taskings</button>
+  <button class="nav-item" data-view="nia">NIAs</button>
+  <button class="nav-item" data-view="bi">BI's</button>
+  <button class="nav-item" data-view="pirm">PIRM</button>
+  <button class="nav-item" data-view="new-case">+ Record intelligence</button>
+</nav>
+
+<main id="app-root">
+  <div class="loading">Loading&hellip;</div>
+</main>
+
+<div id="modal-root"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

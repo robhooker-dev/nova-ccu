@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+python-docx
+pypdf==5.1.0
+python-multipart
+pydantic>=2.12.1
+itsdangerous
